@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Register - MSLR{% endblock %}
+
+{% block extra_css %}
+<style>
+    .qr-scanner {
+        display: none;
+        margin-top: 15px;
+    }
+    #qr-reader {
+        border: 2px solid #3498db;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="mb-0"><i class="fas fa-user-plus"></i> Voter Registration</h2>
+            </div>
+            <div class="card-body p-4">
+                {% if success %}
+                <div class="alert alert-success" role="alert">
+                    <h4 class="alert-heading"><i class="fas fa-check-circle"></i> Registration Successful!</h4>
+                    <p>Your account has been created successfully. You can now log in and participate in referendums.</p>
+                    <hr>
+                    <a href="{{ url_for('login') }}" class="btn btn-success">
+                        <i class="fas fa-sign-in-alt"></i> Go to Login
+                    </a>
+                </div>
+                {% else %}
+
+                {% if errors %}
+                <div class="alert alert-danger" role="alert">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Please fix the following errors:</h5>
+                    <ul class="mb-0">
+                        {% for error in errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <form method="POST" action="{{ url_for('register') }}" id="registrationForm">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address *</label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                               placeholder="your.email@example.com" required>
+                        <small class="form-text text-muted">This will be your login ID</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="fullname" class="form-label">Full Name *</label>
+                        <input type="text" class="form-control" id="fullname" name="fullname" 
+                               placeholder="John Doe" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="dob" class="form-label">Date of Birth *</label>
+                        <input type="date" class="form-control" id="dob" name="dob" required>
+                        <small class="form-text text-muted">You must be 18 or older to register</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password *</label>
+                        <input type="password" class="form-control" id="password" name="password" 
+                               placeholder="Minimum 6 characters" required minlength="6">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Confirm Password *</label>
+                        <input type="password" class="form-control" id="confirm_password" 
+                               name="confirm_password" placeholder="Re-enter your password" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="scc" class="form-label">Shangri-La Citizen Code (SCC) *</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="scc" name="scc" 
+                                   placeholder="Enter your 10-character SCC" required 
+                                   maxlength="10" style="text-transform: uppercase;">
+                            <button class="btn btn-outline-secondary" type="button" id="scanQRBtn">
+                                <i class="fas fa-qrcode"></i> Scan QR Code
+                            </button>
+                        </div>
+                        <small class="form-text text-muted">
+                            Find your SCC on your Council tax letter or scan the QR code
+                        </small>
+                    </div>
+
+                    <div class="qr-scanner" id="qrScanner">
+                        <div id="qr-reader"></div>
+                        <button type="button" class="btn btn-sm btn-danger mt-2" id="stopScanBtn">
+                            <i class="fas fa-times"></i> Stop Scanning
+                        </button>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-user-plus"></i> Register
+                        </button>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <p>Already have an account? 
+                            <a href="{{ url_for('login') }}">Login here</a>
+                        </p>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+    let html5QrCode;
+
+    document.getElementById('scanQRBtn').addEventListener('click', function() {
+        const scanner = document.getElementById('qrScanner');
+        scanner.style.display = 'block';
+
+        html5QrCode = new Html5Qrcode("qr-reader");
+        
+        html5QrCode.start(
+            { facingMode: "environment" },
+            {
+                fps: 10,
+                qrbox: { width: 250, height: 250 }
+            },
+            (decodedText, decodedResult) => {
+                document.getElementById('scc').value = decodedText.toUpperCase();
+                html5QrCode.stop();
+                scanner.style.display = 'none';
+            },
+            (errorMessage) => {
+                // Handle scan errors silently
+            }
+        ).catch((err) => {
+            alert('Unable to access camera. Please enter SCC manually or check camera permissions.');
+            scanner.style.display = 'none';
+        });
+    });
+
+    document.getElementById('stopScanBtn').addEventListener('click', function() {
+        if (html5QrCode) {
+            html5QrCode.stop();
+            document.getElementById('qrScanner').style.display = 'none';
+        }
+    });
+
+    // Password confirmation validation
+    document.getElementById('registrationForm').addEventListener('submit', function(e) {
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+
+        if (password !== confirmPassword) {
+            e.preventDefault();
+            alert('Passwords do not match!');
+        }
+    });
+
+    // Convert SCC to uppercase
+    document.getElementById('scc').addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+</script>
+{% endblock %}

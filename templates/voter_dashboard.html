@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Voter Dashboard - MSLR{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Page background with transparent image */
+    body {
+        position: relative;
+        min-height: 100vh;
+    }
+
+    body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: url("{{ url_for('static', filename='images/voter-dashboard.png') }}")
+                    center center / cover no-repeat;
+        opacity: 0.6;
+        z-index: -1;
+    }
+
+    /* Improve readability */
+    .card {
+        background-color: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(2px);
+    }
+
+    .referendum-card {
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .referendum-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+
+    .option-label {
+        cursor: pointer;
+        padding: 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        transition: all 0.3s;
+        margin-bottom: 10px;
+    }
+
+    .option-label:hover {
+        border-color: #3498db;
+        background-color: #f8f9fa;
+    }
+
+    .option-label input:checked ~ span {
+        font-weight: bold;
+        color: #3498db;
+    }
+
+    .voted-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="mb-0"><i class="fas fa-tachometer-alt"></i> Voter Dashboard</h2>
+            </div>
+            <div class="card-body">
+                <h4>Welcome, {{ session.user_name }}!</h4>
+                <p class="text-muted">View active referendums and cast your vote below.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if referendums %}
+<div class="row">
+    <div class="col-12">
+        <h3 class="mb-3"><i class="fas fa-vote-yea"></i> Active Referendums</h3>
+    </div>
+    
+    {% for ref in referendums %}
+    <div class="col-md-6 mb-4">
+        <div class="card referendum-card h-100 position-relative">
+            {% if ref.has_voted %}
+            <span class="badge bg-success voted-badge">
+                <i class="fas fa-check-circle"></i> Voted
+            </span>
+            {% endif %}
+
+            <div class="card-body">
+                <h5 class="card-title">{{ ref.referendum_title }}</h5>
+                <p class="card-text text-muted">{{ ref.referendum_desc }}</p>
+                
+                {% if not ref.has_voted %}
+                <form class="vote-form" data-referendum-id="{{ ref.referendum_id }}">
+                    <div class="mb-3">
+                        <h6>Select your choice:</h6>
+                        {% for option in ref.options %}
+                        <label class="option-label d-block">
+                            <input type="radio" name="option_id" value="{{ option.opt_id }}" required>
+                            <span class="ms-2">{{ option.option_text }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-paper-plane"></i> Cast Vote
+                    </button>
+                </form>
+                {% else %}
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle"></i> You have already voted in this referendum.
+                    {% for option in ref.options %}
+                        {% if option.opt_id == ref.voted_option %}
+                        <br><strong>Your choice:</strong> {{ option.option_text }}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <h5><i class="fas fa-info-circle"></i> No Active Referendums</h5>
+            <p class="mb-0">There are currently no active referendums. Please check back later.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if past_referendums %}
+<div class="row mt-4">
+    <div class="col-12">
+        <h3 class="mb-3"><i class="fas fa-history"></i> Past Referendums</h3>
+    </div>
+    
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Referendum</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ref in past_referendums %}
+                            <tr>
+                                <td>{{ ref.referendum_title }}</td>
+                                <td><span class="badge bg-secondary">Closed</span></td>
+                                <td>
+                                    {{ ref.closed_at.strftime('%Y-%m-%d %H:%M') if ref.closed_at else 'N/A' }}
+                                </td>
+
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div id="voteModal" class="modal fade" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Confirm Vote</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('.vote-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        const form = $(this);
+        const referendumId = form.data('referendum-id');
+        const optionId = form.find('input[name="option_id"]:checked').val();
+        
+        if (!optionId) {
+            alert('Please select an option.');
+            return;
+        }
+        
+        if (!confirm('Are you sure you want to cast this vote? This action cannot be undone.')) {
+            return;
+        }
+        
+        $.ajax({
+            url: '/voter/vote/' + referendumId,
+            method: 'POST',
+            data: { option_id: optionId },
+            success: function(response) {
+                $('#modalTitle').text('Success');
+                $('#modalBody').html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> ' + response.message + '</div>');
+                $('#voteModal').modal('show');
+                
+                setTimeout(function() {
+                    location.reload();
+                }, 2000);
+            },
+            error: function(xhr) {
+                const response = xhr.responseJSON;
+                $('#modalTitle').text('Error');
+                $('#modalBody').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> ' + response.message + '</div>');
+                $('#voteModal').modal('show');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

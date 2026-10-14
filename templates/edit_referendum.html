@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Referendum - MSLR{% endblock %}
+
+{% block extra_css %}
+<style>
+    .option-item {
+        position: relative;
+        margin-bottom: 10px;
+    }
+    .remove-option {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h2 class="mb-0"><i class="fas fa-edit"></i> Edit Referendum</h2>
+            </div>
+            <div class="card-body p-4">
+                {% if error %}
+                <div class="alert alert-danger" role="alert">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Cannot Edit</h5>
+                    <p class="mb-0">{{ error }}</p>
+                    <hr>
+                    <a href="{{ url_for('ec_dashboard') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+                {% else %}
+
+                {% if referendum.errors %}
+                <div class="alert alert-danger" role="alert">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Please fix the following errors:</h5>
+                    <ul class="mb-0">
+                        {% for error in referendum.errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <div class="alert alert-warning" role="alert">
+                    <i class="fas fa-info-circle"></i> 
+                    <strong>Note:</strong> You can only edit referendums that haven't received any votes yet.
+                </div>
+
+                <form method="POST" action="{{ url_for('edit_referendum', referendum_id=referendum.referendum_id) }}" id="referendumForm">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Referendum Title *</label>
+                        <input type="text" class="form-control" id="title" name="title" 
+                               value="{{ referendum.referendum_title }}"
+                               placeholder="Enter the referendum question" required>
+                        <small class="form-text text-muted">
+                            This should be a clear question that voters will answer
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description *</label>
+                        <textarea class="form-control" id="description" name="description" 
+                                  rows="4" placeholder="Provide details about the referendum" required>{{ referendum.referendum_desc }}</textarea>
+                        <small class="form-text text-muted">
+                            Explain the context and importance of this referendum
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Options *</label>
+                        <div id="optionsContainer">
+                            {% for option in referendum.options %}
+                            <div class="option-item">
+                                <input type="text" class="form-control" name="options[]" 
+                                       value="{{ option.option_text }}"
+                                       placeholder="Option {{ loop.index }}" required>
+                                {% if loop.index > 2 %}
+                                <button type="button" class="btn btn-sm btn-danger remove-option">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addOptionBtn">
+                            <i class="fas fa-plus"></i> Add Another Option
+                        </button>
+                        <small class="form-text text-muted d-block mt-1">
+                            Provide at least 2 options for voters to choose from
+                        </small>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-warning btn-lg">
+                            <i class="fas fa-save"></i> Update Referendum
+                        </button>
+                        <a href="{{ url_for('ec_dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let optionCount = {{ referendum.options|length }};
+
+    document.getElementById('addOptionBtn').addEventListener('click', function() {
+        optionCount++;
+        const optionHtml = `
+            <div class="option-item">
+                <input type="text" class="form-control" name="options[]" 
+                       placeholder="Option ${optionCount}" required>
+                <button type="button" class="btn btn-sm btn-danger remove-option">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        document.getElementById('optionsContainer').insertAdjacentHTML('beforeend', optionHtml);
+    });
+
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-option')) {
+            const optionItems = document.querySelectorAll('.option-item');
+            if (optionItems.length > 2) {
+                e.target.closest('.option-item').remove();
+            } else {
+                alert('You must have at least 2 options.');
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
